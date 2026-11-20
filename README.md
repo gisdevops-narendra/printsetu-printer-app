@@ -77,6 +77,41 @@ PRINTSETU_PRINT_DRIVER=mock npm run dev
 | `installer/windows/` | The Inno Setup installer |
 | `vendor/` | Bundled SumatraPDF (see `vendor/README.md`) |
 
+## Releases
+
+Each version is published under
+[Releases](https://github.com/gisdevops-narendra/printsetu-printer-app/releases),
+built by GitHub Actions from the code in this repository
+(`.github/workflows/release.yml`), with SHA-256 checksums in `SHA256SUMS.txt`.
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org)
+
+- Committers and reviewers: [gisdevops-narendra](https://github.com/gisdevops-narendra)
+- Approvers: [gisdevops-narendra](https://github.com/gisdevops-narendra)
+
+Only files built by this repository's GitHub Actions from its own source code
+are signed, and every release is approved by hand before it is signed. Changes
+from anyone else (pull requests) are reviewed by a committer before they are
+merged.
+
+## Privacy
+
+This program will not transfer any information to other networked systems
+unless specifically requested by the user or the person installing or
+operating it.
+
+It connects only to the PrintSetu server the shop pairs it with by typing a
+setup code during installation. It sends that server: the computer's name and
+operating system (Windows or Linux, and its version), the names and status of
+its printers, whether it is online, the Printer App's version, and the
+progress of each print order. It downloads only the documents of orders the shop has
+accepted, and deletes each one as soon as it has printed. It sends nothing to
+any other system. How PrintSetu itself handles customers' documents is
+described in the privacy policy on the PrintSetu website (the "Privacy" link on
+every page).
+
 ## Reporting problems
 
 - A bug or a printer that doesn't work: open an issue with your operating

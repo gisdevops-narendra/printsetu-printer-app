@@ -32,6 +32,13 @@ AppId={{6F0D3C1E-4B8A-4E57-9C2A-7B1E5D9A2F10}
 AppName=PrintSetu Printer App
 AppVersion={#AppVersion}
 AppPublisher=PrintSetu
+; The Setup.exe's Windows "Details" (code-signing services such as SignPath require them).
+VersionInfoVersion={#AppVersion}
+VersionInfoProductName=PrintSetu Printer App
+VersionInfoProductVersion={#AppVersion}
+VersionInfoCompany=PrintSetu
+VersionInfoDescription=PrintSetu Printer App Setup
+VersionInfoCopyright=Copyright 2026 PrintSetu. Apache License 2.0.
 DefaultDirName={autopf}\PrintSetu
 DisableDirPage=yes
 DisableProgramGroupPage=yes

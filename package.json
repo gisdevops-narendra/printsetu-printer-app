@@ -12,7 +12,7 @@
     "dev": "ts-node src/index.ts",
     "configure": "ts-node src/configure.ts",
     "test": "jest",
-    "build:exe": "npm run build && pkg . --output release/PrintSetuAgent.exe",
+    "build:exe": "npm run build && node scripts/set-exe-details.js && pkg . --output release/PrintSetuAgent.exe",
     "build:exe:linux": "npm run build && pkg dist/index.js --config pkg.linux.json --output release/printsetu-agent-linux",
     "build:exe:all": "npm run build:exe && npm run build:exe:linux",
     "package": "node scripts/build-release-bundle.js",
@@ -31,6 +31,7 @@
     "@types/uuid": "^10.0.0",
     "jest": "^29.7.0",
     "pkg": "^5.8.1",
+    "resedit": "1.7.2",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"

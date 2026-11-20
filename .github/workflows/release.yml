@@ -1,0 +1,65 @@
+# Builds the Printer App from this repository's code and attaches it to a
+# GitHub Release, so every released version can be checked against its source.
+#
+# To make a release: Releases → Draft a new release → new tag (e.g. v1.0.0,
+# matching "version" in package.json) → Publish release. This workflow then
+# adds the files below to it (about 5 minutes).
+#
+# The Windows installer is added only when the repository variable
+# PRINTSETU_BACKEND_HTTP_URL is set: the installer has the server address
+# built in (Settings → Secrets and variables → Actions → Variables).
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to (re)build, e.g. v1.0.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      BACKEND_URL: ${{ vars.PRINTSETU_BACKEND_HTTP_URL }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Tag matches package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "::error::Tag $TAG does not match package.json version $version."
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm test
+      - name: Build the Windows and Linux apps
+        run: npm run build:exe:all && npm run package
+
+      - name: Build the Windows installer
+        if: env.BACKEND_URL != ''
+        run: PRINTSETU_BACKEND_HTTP_URL="$BACKEND_URL" npm run build:installer
+
+      - name: Attach the files to the release
+        run: |
+          mkdir -p out
+          cp release/PrintSetuAgent.exe out/
+          cp release/printsetu-agent-linux out/
+          [ -f release/installer/PrintSetu-Setup.exe ] && cp release/installer/PrintSetu-Setup.exe out/
+          (cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          gh release upload "$TAG" out/* --clobber
