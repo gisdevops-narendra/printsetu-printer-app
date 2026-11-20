@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release/
+logs/
+downloads/
+printed-output/
+build-info.json
+# The app's own ID and secret key, written when it is paired with a shop.
+agent.config.json
+.env

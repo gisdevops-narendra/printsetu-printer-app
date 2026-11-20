@@ -1,0 +1,32 @@
+# Checks every change: tests, TypeScript build, and the Windows/Linux
+# executables (kept for 14 days as a download on the run's page).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:exe:all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: printer-app-${{ github.sha }}
+          path: |
+            release/PrintSetuAgent.exe
+            release/printsetu-agent-linux
+          retention-days: 14

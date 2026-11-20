@@ -1,0 +1,8 @@
+{
+  "name": "printsetu-print-agent",
+  "bin": "dist/index.js",
+  "pkg": {
+    "assets": ["build-info.json"],
+    "targets": ["node18-linux-x64"]
+  }
+}

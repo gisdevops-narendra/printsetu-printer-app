@@ -1,0 +1,98 @@
+import * as os from 'os';
+import { loadConfig } from './config';
+import { BackendHttpClient } from './http-client';
+import { createPrinterAdapter } from './printing/printer-adapter.factory';
+import { JobProcessor } from './job-processor';
+import { AgentSocketClient } from './socket-client';
+import { PrinterReporter } from './printer-reporter';
+import { logger } from './logger';
+import { AGENT_VERSION } from './version';
+import { Updater } from './updater';
+
+const PRINTER_SCAN_INTERVAL_MS = 60_000;
+
+const OUTBOX_FLUSH_MS = 30_000;
+
+async function main() {
+  // `PrintSetuAgent.exe --version`: prints the version and exits (support, and a quick self-test).
+  if (process.argv.includes('--version')) {
+    console.log(AGENT_VERSION);
+    return;
+  }
+  const config = loadConfig();
+  logger.info('Starting PrintSetu Print Agent', {
+    version: AGENT_VERSION,
+    agentId: config.agentId,
+    printDriver: config.printDriver,
+    printerName: config.printerName || '(chosen on dashboard)',
+    hostname: os.hostname(),
+    os: `${process.platform} ${os.release()} ${process.arch}`,
+    node: process.version,
+  });
+
+  const http = new BackendHttpClient(config);
+  const printer = createPrinterAdapter(config);
+  const processor = new JobProcessor(config, http, printer);
+  const printerReporter = new PrinterReporter(http, printer);
+  const socket = new AgentSocketClient(config, processor, printerReporter);
+
+  // An order interrupted by a restart is followed to the end first.
+  await processor.recoverInterrupted().catch((error) => logger.error(`Recovering an interrupted order failed: ${(error as Error).message}`));
+  socket.connect();
+
+  // Reports the backend could not be told about (internet down) are sent once it can.
+  void processor.flushOutbox();
+  setInterval(() => void processor.flushOutbox(), OUTBOX_FLUSH_MS);
+
+  const updater = new Updater({
+    http,
+    isBusy: () => processor.busy,
+    beforeRestart: () => socket.disconnect(),
+  });
+  updater.start();
+
+  // Printers get plugged in/removed while the agent runs — rescan so the
+  // dashboard's printer picker stays current (only uploads on change).
+  void printerReporter.report(true);
+  setInterval(() => void printerReporter.report(), PRINTER_SCAN_INTERVAL_MS);
+
+  // Heartbeat: prefer the socket channel, but always also hit the HTTP
+  // endpoint so printers.last_heartbeat_at advances even during a
+  // WebSocket outage (SRS §13.3 "Agent stopped" detection depends on it).
+  setInterval(() => {
+    socket.sendHeartbeat();
+    http.safeHeartbeat();
+  }, config.heartbeatIntervalMs);
+
+  // SRS §17: GET /api/agent/jobs/next — "Polling fallback". Runs
+  // continuously but only actually matters while the socket is down,
+  // since the backend won't have anything QUEUED that a connected agent
+  // wasn't already pushed.
+  setInterval(async () => {
+    if (socket.connected) return;
+    try {
+      const job = await http.pollNextJob();
+      if (job) {
+        logger.info(`Picked up job ${job.jobId} via polling fallback.`);
+        await processor.handle(job);
+      }
+    } catch (error) {
+      logger.warn(`Polling failed: ${(error as Error).message}`);
+    }
+  }, config.pollIntervalMs);
+
+  process.on('SIGINT', () => {
+    logger.info('Shutting down agent...');
+    socket.disconnect();
+    process.exit(0);
+  });
+}
+
+main().catch((error) => {
+  // winston's file transport writes asynchronously — exiting immediately
+  // after logger.error() can cut the write off before it reaches disk,
+  // which would hide the one log line an installer/operator needs most.
+  logger.error(`Fatal agent error: ${error.message}`);
+  logger.on('finish', () => process.exit(1));
+  logger.end();
+});
